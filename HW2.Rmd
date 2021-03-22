@@ -1,0 +1,292 @@
+---
+title: "HW2"
+author: "Lauren Stover"
+date: "3/7/2021"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+
+#Question 1, Plot 1
+```{r}
+library(dplyr)
+library(dbplyr)
+library(readxl)
+library(ggplot2)
+capmetro_UT <- read_excel("~/Documents/UTX/DataMining/ECO395M-master/data/capmetro_UT.xls")
+# Recode the categorical variables in sensible, rather than alphabetical, order
+capmetro_UT = mutate(capmetro_UT,
+               day_of_week = factor(day_of_week,
+                 levels=c("Mon", "Tue", "Wed","Thu", "Fri", "Sat", "Sun")),
+               month = factor(month,
+                 levels=c("Sep", "Oct","Nov")))
+metroavg=capmetro_UT %>%
+  group_by(day_of_week,hour_of_day,month) %>%
+  summarise(avg_boarding=mean(boarding)) 
+
+plot1 <- ggplot(metroavg) + 
+  geom_line(aes(x=hour_of_day, y=avg_boarding, color=month))
+
+plot1+facet_wrap(. ~ day_of_week)
+
+```
+Here we can see that the weekday average boarding for each month has a similar behavior, but weekends are much lower. This is likely due to the fact that students are not needing rides to and from classes as much on the weekend. We can also see that the months seem to follow a similar pattern, no matter what day it is. This is interesting because in November it seems like there are less average boardings than September and October, but I suppose in Texas the weather is probably quite hot in September and October and a little cooler in November. Either that or people skip class more, which I hope is not the case. 
+
+#Question 1, Plot 2
+```{r}
+plot2 <-ggplot(capmetro_UT, aes(x=temperature, y=boarding, color=weekend)) + 
+    geom_point(size=0.75) 
+   
+plot2+facet_wrap(. ~ hour_of_day)
+```
+Each point represents a 15 minute window.  We see that temperature does not affect boarding, they seem to mostly be clustered between 40 and 80 daily evenly. The hour of the day has more of an effect than 
+temperature. 
+
+#Question 2
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(rsample)  # for creating train/test splits
+library(caret)
+library(parallel)
+library(foreach)
+library(modelr)
+library(mosaic)
+data(SaratogaHouses)
+
+####
+# Compare out-of-sample predictive performance
+####
+
+# Split into training and testing sets
+saratoga_split = initial_split(SaratogaHouses, prop = 0.8)
+saratoga_train = training(saratoga_split)
+saratoga_test = testing(saratoga_split)
+	
+# Fit to the training data
+# Sometimes it's easier to name the variables we want to leave out
+# The command below yields exactly the same model.
+# the dot (.) means "all variables not named"
+# the minus (-) means "exclude this variable"
+lm1 = lm(price ~ lotSize + bedrooms + bathrooms, data=saratoga_train)
+lm2 = lm(price ~ . - pctCollege - sewer - waterfront - landValue - newConstruction, data=saratoga_train)
+lm3 = lm(price ~ (. - pctCollege - sewer - waterfront - landValue - newConstruction)^2, data=saratoga_train)
+
+coef(lm1) %>% round(0)
+coef(lm2) %>% round(0)
+coef(lm3) %>% round(0)
+
+# Predictions out of sample
+# Root mean squared error
+rmse(lm1, saratoga_test)
+#86024.66
+rmse(lm2, saratoga_test)
+#73803.68
+rmse(lm3, saratoga_test)
+#76782.72
+
+#add different variables, interactions, for linear model another linear model and transfromations to show we can make it better
+lm4 = lm(price ~ lotSize + bedrooms + bathrooms+ newConstruction + rooms + waterfront+ age + livingArea, data=saratoga_train)
+lm5 = lm(price ~ . - pctCollege - sewer - centralAir - landValue - fireplaces - fuel - heating, data=saratoga_train)
+lm6 = lm(price ~ (. - pctCollege - sewer - centralAir - landValue - fireplaces - fuel - heating)^2, data=saratoga_train)
+
+coef(lm4) %>% round(0)
+coef(lm5) %>% round(0)
+coef(lm6) %>% round(0)
+
+# Predictions out of sample
+# Root mean squared error
+rmse(lm4, saratoga_test)
+#67916.38
+rmse(lm5, saratoga_test)
+#67916.38
+rmse(lm6, saratoga_test)
+#67395.49
+
+# KNN with K = 40
+knn40 = knnreg(price ~ lotSize + bedrooms + bathrooms+ newConstruction + rooms + waterfront+ age + livingArea, data=saratoga_train, k=40)
+rmse(knn40, saratoga_test)
+# 80591.01
+
+#KNN with K = 50
+knn50 = knnreg(price ~ lotSize + bedrooms + bathrooms+ newConstruction + rooms + waterfront+ age + livingArea, data=saratoga_train, k=50)
+rmse(knn50, saratoga_test)
+#81222.5
+
+#KNN with K = 20
+knn20 = knnreg(price ~ lotSize + bedrooms + bathrooms+ newConstruction + rooms + waterfront+ age + livingArea, data=saratoga_train, k=20)
+rmse(knn20, saratoga_test)
+#80835.27
+
+#This would indicate the best K is between K=20 and K=40, let's perhaps try K=30
+# KNN with K = 30
+knn30 = knnreg(price ~ lotSize + bedrooms + bathrooms+ newConstruction + rooms + waterfront+ age + livingArea, data=saratoga_train, k=30)
+rmse(knn30, saratoga_test)
+#80380.6
+#K=30 did in fact produce the lowest RMSE so far
+```
+
+To create an effective price-modeling strategy, one should consider two various kinds of regression models: K-nearest neighbor design and linear regression models. Above, one can see that the RMSE for various linear regression models is lower than the training data set when tested. This demonstrates that the linear model performs well. One can also observe that the K-nearest neighbors RMSE's are   above the linear model RMSE's, indicating that the linear model is the best prediction of pricing. 
+
+#Question 3
+```{r}
+library(tidyverse)
+library(readxl)
+german_credit <- read_excel("~/Documents/UTX/DataMining/ECO395M-master/data/german_credit.xls")
+loans1 <-  german_credit %>%
+  group_by(history) %>%
+  summarize(default_prob = sum(Default == 1)/n())
+ggplot(data=loans1) +
+  geom_col(mapping = aes(x = history, y = default_prob, fill = history))
+```
+
+
+```{r}
+# a simple linear probability model
+lm1 = glm(Default ~ history+duration+amount+installment+age+purpose+foreign, data=german_credit)
+german_credit$lm1_pred = predict(lm1)
+
+              
+# in-sample accuracy?
+yhat_train = ifelse(predict(lm1) >= 0.5, 1, 0)
+table(y=german_credit$Default, yhat=yhat_train)
+
+# yhat
+#y   0   1
+# 0 651  49
+# 1 215  85
+```
+
+```{r}
+fpr2=49/(49+651)
+tpr2=85/(85+215)
+
+fpr2
+#0.07
+tpr2
+#0.2833333
+```
+
+The history variable seems to be a large component of predicting defaults. I think this is because of the way the bank used the sampling method. The false positive rate for the model is extremely low at 7% but the true positive rate is extremely low at only 28.3%. This means that the model does not predict defaults very well. The bank should perhaps reconsider their sampling scheme by taking a random sample and not adding in potential new data. The amoutn of defaults should be lower by nature, so there is no need to add. 
+
+
+#Question 4
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(naivebayes)
+library(modelr)
+library(rsample)
+library(foreach)
+library(caret)
+library(parallel)
+library(readxl)
+hotels_dev <- read_csv("~/Documents/UTX/DataMining/ECO395M-master/data/hotels_dev.csv")
+hotels_val <- read_csv("~/Documents/UTX/DataMining/ECO395M-master/data/hotels_val.csv")
+
+#Model Building#
+####Compare out-of-sample predictive performance
+
+# Split into training and testing sets
+hotel1_split = initial_split(hotels_dev, prop = 0.8)
+hotel1_train = training(hotel1_split)
+hotel1_test = testing(hotel1_split)
+	
+# Fit to the training data
+# Sometimes it's easier to name the variables we want to leave out
+# The command below yields exactly the same model.
+# the dot (.) means "all variables not named"
+# the minus (-) means "exclude this variable"
+lm7 = lm(children ~ market_segment + adults + customer_type + is_repeated_guest, data=hotel1_train)
+lm8 = lm(children ~ . - arrival_date, data=hotel1_train)
+lm9 = lm(children ~ (market_segment + adults + customer_type + is_repeated_guest + meal + reserved_room_type + booking_changes + required_car_parking_spaces + total_of_special_requests)^2, data=hotel1_train)
+
+coef(lm7) %>% round(0)
+coef(lm8) %>% round(0)
+coef(lm9) %>% round(0)
+
+# Predictions out of sample
+# Root mean squared error
+rmse(lm7, hotel1_test)
+#0.2684471
+rmse(lm8, hotel1_test)
+#0.232954
+rmse(lm9, hotel1_test)
+#0.2279379
+validation2 = predict(lm9, newdata=hotels_dev)
+yhat_test2 = ifelse(validation2 >= 0.5, 1, 0)
+confusion_in=table(y=hotels_dev$children, yhat1=yhat_test2)
+confusion_in
+#yhat1
+#y       0     1
+#0 40810   555
+#1  2208  1427
+
+fpr1=0.013417
+tpr1=0.393572
+
+```
+```{r}
+#model validation: Step 1 - validate
+lm10 = lm(children ~ (market_segment + adults + customer_type + is_repeated_guest + meal + reserved_room_type + booking_changes + required_car_parking_spaces + total_of_special_requests)^2, data=hotels_val)
+validation1 = predict(lm10, newdata=hotels_val)
+yhat_test = ifelse(validation1 >= 0.5, 1, 0)
+confusion_out=table(y=hotels_val$children, yhat=yhat_test)
+confusion_out
+#yhat
+#y      0    1
+#0 4543   54
+#1  231  171
+#error rate = (250+83)/ 4999 or about 5.7% error, accuracy of 94.3% accuracy
+fpr=0.011747
+tpr=0.425373
+```
+
+```{r}
+library(PRROC)
+library(pROC)
+library(ROCit)
+library(ROCR)
+# check imbalance on training set
+table(hotels_val$children)
+
+# model estimation using logistic regression
+lm10 = lm(children ~ (market_segment + adults + customer_type + is_repeated_guest + meal + reserved_room_type + booking_changes + required_car_parking_spaces + total_of_special_requests)^2, data=hotels_val)
+
+# prediction on training set
+pred.lm10 <- predict(lm10, newdata=hotels_val)
+
+# add the ROC curve (test set)
+roc1=roc.curve(hotels_val$children, pred.lm10, curve=TRUE)
+
+plot(roc1)
+```
+
+
+
+```{r}
+#model validation: Step 2 - folds
+K_folds = 20
+
+hotels_val = hotels_val %>%
+  mutate(fold_id = rep(1:K_folds, length=nrow(hotels_val)) %>% sample)
+
+
+# now loop over folds
+rmse_cv = foreach(fold = 1:K_folds, .combine='c') %do% {
+  lm10 = knnreg(children ~ (market_segment + adults + customer_type + is_repeated_guest + meal + reserved_room_type + booking_changes + required_car_parking_spaces + total_of_special_requests)^2,
+                  data=filter(hotels_val), k=20)
+  modelr::rmse(lm10, data=filter(hotels_val))
+}
+
+rmse_cv
+#[1] 0.24592 0.24592 0.24592 0.24592 0.24592 0.24592 0.24592
+#[8] 0.24592 0.24592 0.24592 0.24592 0.24592 0.24592 0.24592
+#[15] 0.24592 0.24592 0.24592 0.24592 0.24592 0.24592
+#mean(rmse_cv)  # mean CV error
+#0.24592
+sd(rmse_cv)/sqrt(K_folds)
+#0
+```
+
