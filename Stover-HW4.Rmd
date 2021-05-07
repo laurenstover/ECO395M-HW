@@ -1,0 +1,486 @@
+---
+title: "HW4"
+author: "Lauren Stover"
+date: "3/31/2021"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+# ECO 395M: Exercises 4
+  
+### Clustering and PCA - Question 1
+
+
+#Overview
+We have been tasked with running a PCA and clustering algorithm on the 11 chemical properties of various wines. There were 6500 different bottles surveyed from northern Portugal. There were two variables added to give additional information on the wines; a. whether it was red or white and b. the quality of the wine judged on a scale of 1-10. 
+
+#PCA
+First I will run a clustering analysis on the data set. 
+```{r, echo=FALSE, error=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(naivebayes)
+library(modelr)
+library(rsample)
+library(foreach)
+library(caret)
+library(parallel)
+library(mosaic)
+library(LICORS)  # for kmeans++
+library(mvtnorm)
+wine <- read_csv("~/Documents/UTX/DataMining/ECO395M/data/wine.csv")
+```
+
+Next, I will extract the centers and scale the data after rescaling. I will then use k means plus plus and calculate the within cluster sum of squares and the between clusters sum of squares. 
+```{r, echo=FALSE}
+# Center and scale the data
+X = wine[,-(13)]
+X = scale(X, center=TRUE, scale=TRUE)
+
+# Extract the centers and scales from the rescaled data (which are named attributes)
+mu = attr(X,"scaled:center")
+sigma = attr(X,"scaled:scale")
+
+# Using kmeans++ initialization
+clust1 = kmeanspp(X, k=6, nstart=25)
+#above is k means plus plus 
+#it essentially grafts onto beginning on normal kmeans different initial scheme
+#biases centroids towards points far apart and more dense in space
+#most tries to get density and diversity
+
+
+clust1$withinss
+#represents k means plus plus
+#withinss is within cluster sum of squares
+#what are those clusters within cluster SS
+sum(clust1$withinss)
+#similar to sum of squared errors for regression 
+clust1$tot.withinss
+clust1$betweenss
+
+```
+As one can see, the within cluster sum of squares is 40,847.83. The between clusters sum of squares is 37,104.17.
+
+```{r}
+qplot(color, alcohol, data = wine, color=factor(clust1$cluster))
+```
+Above you can see that alcohol does a good job of predicting the color of the wine. There is some more variance in the red predictions than the white. 
+
+```{r}
+qplot(color, total.sulfur.dioxide, data = wine, color=factor(clust1$cluster))
+```
+The above graph shows how total sulfur dioxide predicts whether a wine is red or white. This variable is not as accurate at predicting color as alcohol, but it still does a fairly decent job. 
+
+```{r}
+qplot(color, citric.acid, data = wine, color=factor(clust1$cluster))
+```
+As you can see from the above plot, clustering does a good job on determining whether or not a wine is red or white based on the citric acid. Again, there seems to be more variance using this variable than some others. 
+
+
+
+Now for the PCA analysis. For PCA you only select variables that are numerical.
+```{r, echo=FALSE}
+Z = wine[,c(4,12)]
+
+# Standardize (center/scale) the data
+Z_std = scale(Z)
+plot(Z_std)
+```
+As you can see in the plot above, as the data is centered around the quality of the wine the level of residual sugar varies. 
+
+
+```{r, echo=FALSE}
+# Pick a random unit-norm vector and show the implied subspace
+v_try = rnorm(2)
+v_try = v_try/sqrt(sum(v_try^2))  # normalize to unit length
+
+# show the points and the vector v
+plot(Z_std, pch=19, col=rgb(0.3,0.3,0.3,0.3))
+segments(0, 0, v_try[1], v_try[2], col='red', lwd=4)
+
+
+```
+The above plot shows the z standardized plot fitted with a vector 'v'. 
+```{r, echo=FALSE}
+# show the implied subspace spanned by this vector
+slope = v_try[2]/v_try[1]
+
+
+# Now show the subspace, side by side with the projected points as a histogram
+v_try = rnorm(2)
+v_try = v_try/sqrt(sum(v_try^2))  # normalize to unit length
+
+par(mfrow=c(1,2))
+plot(Z_std, pch=19, col=rgb(0.3,0.3,0.3,0.3),
+     xlim=c(-2.5,2.5), ylim=c(-2.5,2.5))
+slope = v_try[2]/v_try[1]
+abline(0, slope)  # plot the subspace as a line
+
+# Project the points onto that subspace
+alpha = Z_std %*% v_try  # inner product of each row with v_try
+z_hat = alpha %*% v_try  # locations in R^2
+points(z_hat, col='blue', pch=4)
+segments(0, 0, v_try[1], v_try[2], col='red', lwd=4)
+
+# the number at the top is the variance of the projected points
+hist(alpha, 25, xlim=c(-3,3), main=round(var(alpha), 2))
+
+```
+Above, you can see some of the various effects of residual sugar on quality. We can see the subspace has been transformed to a histogram. The number at the top of the histogram indicates the variance of the projected points. 
+
+```{r}
+# Compare these random projections to the first PC
+pc1 = prcomp(Z_std)
+v_best = pc1$rotation[,1]
+v_best
+slope_best = v_best[2]/v_best[1]  # intercept = 0, slope = rise/run
+
+par(mfrow=c(1,2))
+plot(Z_std, xlim=c(-2.5,2.5), ylim=c(-2.5,2.5))
+abline(0, slope_best)  # plot the subspace as a line
+
+alpha_best = Z_std %*% v_best  # inner product of each row with v_best
+z_hat = alpha_best %*% v_best  # locations in R^2
+points(z_hat, col='blue', pch=4)
+segments(0, 0, v_best[1], v_best[2], col='red', lwd=4)
+
+hist(alpha_best, 25, xlim=c(-3,3), main=round(var(alpha_best), 2))
+
+```
+We are now comparing these projections to the first PC. AS you can see above the alpha is better than before.
+
+```{r}
+# How much of the variation does this first principal component predict?
+var(Z_std[,1])
+var(Z_std[,2])
+var(Z_std[,1]) + var(Z_std[,2])
+
+# Shorthand for this
+var_bycomponent = apply(Z_std, 2, var)
+sum(var_bycomponent)
+
+# Compare with variance of the projected points
+var(alpha_best)
+var(alpha_best)/sum(var_bycomponent)  # as a ratio
+```
+These numbers indicate just how much variation is accounted for in the first principal compoinent. The bottom is comparing the variance with the projected points predicted as a ratio. 
+
+```{r}
+# Compare with the answer from prcomp's plot method
+par(mfrow=c(1,1))
+plot(pc1)
+pc1$sdev^2  # the standard deviation, rather than the variance
+
+
+v_best2 = pc1$rotation[,2]
+# The two PCs
+v_best
+v_best2
+```
+Above is plotted the residual sugar vs the quality for the best PC. We can see it does a fairly good job of capturing the variances.  We can see that the two PC'S are similar when printed out. 
+
+```{r, echo=FALSE}
+# Now look at the twelve numerical variables
+Z = wine[,1:12]
+
+# Clearly a lot of correlation structure in the measurements 
+pairs(Z)
+
+
+```
+Above we can see the structure of the pairings between the twelve different numerical variables of the dataset. 
+
+```{r, echo=FALSE}
+# Run PCA on all four dimensions
+# scaling inside the prcomp function now
+wine_pc = prcomp(Z, scale.=TRUE)
+
+# Look at the basic plotting and summary methods
+summary(wine_pc)
+plot(wine_pc)
+
+```
+Above we can see the basic plot and summar statistics for all the variables utilized.
+
+```{r}
+# Question 1: where do the individual points end up in PC space?
+biplot(wine_pc)
+
+
+# Question 2: how are the principal components related to the original variables?
+wine_pc$rotation
+```
+The above graph shows where the individual points end up in the PC space. The output demonstrates how the principal components are related to the original variables. 
+
+
+#Results
+After performing both clustering and PCA techniques, I would conclude that PCA produces the best predictions of which kind of wine, red or white, is identified and the quality. In the graphs above you can clearly see that PCA does a great job of showing how individual points ended up in the analysis.  Clustering while meaningful, did not give as accurate and concise information as PCA did. 
+
+
+
+### Market segmentation- Question 2
+
+#Overview
+NutrientH20 would like to understand social-media audience better so that they can target their audience for advertising. I will attempt to discover meaningful connections between various social media segments through clustering techniques. 
+
+#Analysis
+I defined the 'market segment' as a group of clusters. I felt the best way to group these clusters was through k means ++.
+```{r, echo=FALSE, error=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(naivebayes)
+library(modelr)
+library(rsample)
+library(foreach)
+library(caret)
+library(parallel)
+library(mosaic)
+library(LICORS)  # for kmeans++
+library(mvtnorm)
+social <- read_csv("~/Documents/UTX/DataMining/ECO395M/data/social_marketing.csv")
+```
+
+
+I centered and scaled the data then extracted the centers and scales from the-rescaled data.
+
+#Results
+```{r, echo=FALSE}
+# Center and scale the data
+X2 = social[,-(1)]
+X2 = scale(X2, center=TRUE, scale=TRUE)
+
+# Extract the centers and scales from the rescaled data (which are named attributes)
+mu2 = attr(X2,"scaled:center")
+sigma2 = attr(X2,"scaled:scale")
+
+# Using kmeans++ initialization
+clust2 = kmeanspp(X2, k=6, nstart=25)
+#above is k means plus plus 
+#it essentially grafts onto beginning on normal kmeans different initial scheme
+#biases centroids towards points far apart and more dense in space
+#most tries to get density and diversity
+
+
+clust2$withinss
+#represents k means plus plus
+#withinss is within cluster sum of squares
+#what are those clusters within cluster SS
+sum(clust2$withinss)
+#similar to sum of squared errors for regression 
+clust2$tot.withinss
+clust2$betweenss
+```
+
+As you can see from the above the cluster within sum of squares is 214,480.6. The clustering between sum of squares is 69,235.45. 
+ Now I will create several visiual representations of the correlations between various clusters. 
+```{r}
+qplot(art, fashion, data = social, color=factor(clust2$cluster))
+```
+As you can see above, art and fashion are correlated. 
+
+```{r}
+qplot(eco, business, data = social, color=factor(clust2$cluster))
+```
+As you can see above, surprisingly eco and business are not strongly correalted. 
+```{r}
+qplot(dating, beauty, data = social, color=factor(clust2$cluster))
+```
+Above, one can see that beauty and dating are correlated. 
+
+# Results
+If we were to run even more associations, we could determine which segments have the most overlap. This would allow NutrientH20 to best market to various groups at the same time. Just from above I would reccomend developing a similar marketing strategy for those interested in beauty and dating as well as those interested in fashion and art. I would not reccomend the same advertising for those who are intersted in business and eco. 
+
+#Summary
+H2O can more effectively advertise if they realize similarities between various categories like the above. If you understand how different tweeters are clustered in similar and related categories, you can have a similar marketing technique for these groups and maximize resources. 
+
+
+### Association rules for grocery purchases -Question 3
+
+Revisit the notes on association rule mining and the R example on music playlists: [playlists.R](../R/playlists.R) and [playlists.csv](../data/playlists.csv).  Then use the data on grocery purchases in [groceries.txt](../data/groceries.txt) and find some interesting association rules for these shopping baskets.  The data file is a list of shopping baskets: one person's basket for each row, with multiple items per row separated by commas -- you'll have to cobble together a few utilities for processing this into the format expected by the "arules" package.  Pick your own thresholds for lift and confidence; just be clear what these thresholds are and how you picked them.  Do your discovered item sets make sense?  Present your discoveries in an interesting and concise way.  
+
+#Introduction 
+Below I will analyze association rules for grocery baskets at a local grocery store.
+
+#Data and Model
+First I will perform some preliminary data cleaning and load the data. 
+```{r, echo=FALSE, error=FALSE}
+library(tidyverse)
+library(arules)  # has a big ecosystem of packages built around it
+library(arulesViz)
+library(igraph)
+
+# Association rule mining
+groceries <- read.csv("~/Documents/UTX/DataMining/ECO395M-master/data/groceries.txt", header=FALSE)
+
+str(groceries)
+summary(groceries)
+```
+```{r, echo=FALSE, error=FALSE}
+groctrans = as(groceries, "transactions")
+summary(groctrans)
+
+grocrules = apriori(groctrans, 
+                     parameter=list(support=.005, confidence=.1, maxlen=2))
+
+arules::inspect(grocrules)
+```
+When loading in the data, any empty space means they met the 10% threshold. The data is more interesting at the bototm. We can see an example of an association rule in line 10 the above print out  of 0.6% meaning that 0.6% of shoppers had this rule
+
+```{r, echo=FALSE}
+arules::inspect(subset(grocrules, lift > 7))
+arules::inspect(subset(grocrules, confidence > 0.6))
+arules::inspect(subset(grocrules, lift > 10 & confidence > 0.05))
+```
+Above we inspect various aspects of the data set using different lift and confidence and then combining the two. Confidence is the ratio of the number of transactions in the consequent and antecedent to the number of transactions in the antecedent. Another way to think of confidence is it is the conditional probability that a selected transaction will include items in the consequent, given that all items in the antecedent are included in the transaction. The higher the confidence, the better. Lift is the ratio of the confidence to the expected confidence so a lift of 7 indicated that the relationship between the antecedent and consequent is more significant than if they were independent. 
+```{r, echo=FALSE}
+plot(grocrules)
+
+plot(grocrules, measure = c("support", "lift"), shading = "confidence")
+
+plot(grocrules, method='two-key plot')
+```
+Through the above plots you can see the various effects of lift and confidence and then a graph of lift and confidence combined for 121 association rules. The lift is typically hovered around 5 and the confidence is around 0.8. Both of these are good for this relationship. 
+
+```{r, echo=FALSE}
+# can now look at subsets driven by the plot
+arules::inspect(subset(grocrules, support > 0.035))
+arules::inspect(subset(grocrules, confidence > 0.6))
+
+
+# graph-based visualization
+sub1 = subset(grocrules, subset=confidence > 0.01 & support > 0.005)
+summary(sub1)
+plot(sub1, method='graph')
+?plot.rules
+
+plot(head(sub1, 100, by='lift'), method='graph')
+
+# export a graph
+sub1 = subset(grocrules, subset=confidence > 0.25 & support > 0.005)
+saveAsGraph(sub1, file = "musicrules.graphml")
+```
+
+Above a map is created of various rules. It is interesting to see just how expansive these various rules are. Once again, the importance of lift and confidence come into play as we can see those mapped as well. All in all this method does a good job of discovering association rules between various grocery basekts. 
+
+###Author attribution: Question 4
+
+#Introduction 
+We have been tasked to create a model that outperforms the in class model of author attribution. We have also been asked to make it easy to replicate so I will explain the various steps below. 
+
+#Data and Model
+Below I will load in the data and separate it into training and testing data corpus. 
+
+```{r, echo=FALSE}
+library(tidyverse)
+library(tm)
+library(gamlr)
+library(glmnet)
+library(SnowballC)
+library(slam)
+library(proxy)
+#Define reader function
+readerPlain = function(fname){
+				readPlain(elem=list(content=readLines(fname)),
+							id=fname, language='en') }
+#Create TRAINING Data Corpus
+train_dirs = Sys.glob('~/Documents/UTX/DataMining/ECO395M/data/ReutersC50/C50train/*')
+file_list = NULL
+labels_train = NULL
+for(author in train_dirs) {
+	author_name = substring(author, first=79)
+	files_to_add = Sys.glob(paste0(author, '/*.txt'))
+	file_list = append(file_list, files_to_add)
+	labels_train = append(labels_train, rep(author_name, length(files_to_add)))
+}
+corpus_train = Corpus(DirSource(train_dirs))
+  #Tokenization across all documents in the corpus
+  corpus_train = corpus_train %>% tm_map(., content_transformer(tolower)) %>%
+        tm_map(., content_transformer(removeNumbers)) %>%
+				tm_map(., content_transformer(removeNumbers)) %>%
+				tm_map(., content_transformer(removePunctuation)) %>%
+				tm_map(., content_transformer(stripWhitespace)) %>%
+				tm_map(., content_transformer(removeWords), stopwords("SMART"))
+  
+#Create TESTING Data Corpus
+## Same operations with the testing corpus
+test_dirs = Sys.glob('~/Documents/UTX/DataMining/ECO395M/data/ReutersC50/C50train/*')
+file_list = NULL
+labels_test = NULL
+for(author in test_dirs) {
+	author_name = substring(author, first=79)
+	files_to_add = Sys.glob(paste0(author, '/*.txt'))
+	file_list = append(file_list, files_to_add)
+	labels_test = append(labels_test, rep(author_name, length(files_to_add)))
+}
+corpus_test = Corpus(DirSource(test_dirs))
+  #Tokenization across all documents in corpus
+  corpus_test = corpus_test %>% tm_map(., content_transformer(tolower)) %>%
+				tm_map(., content_transformer(removeNumbers)) %>%
+				tm_map(., content_transformer(removePunctuation)) %>%
+				tm_map(., content_transformer(stripWhitespace)) %>%
+				tm_map(., content_transformer(removeWords), stopwords("SMART"))
+
+```  
+
+Next, we will create a document term matrix for training and test sets. You will then look at some basic summary statistics of the training set and restrict the test set vocabulary to terms in the training set. After, you will reduce sparsity by removing lower frequency terms. You should remove terms that have a count of 0 in more than 95% of the included documents. Again, limit the test set to terms used in the training set. 
+```{r, echo=FALSE}
+  #Create Document-Term Matrix (DTM) for Train and Test sets
+  DTM_train = DocumentTermMatrix(corpus_train)
+  DTM_train # some basic summary statistics
+  # restrict test-set vocabulary to the terms in DTM_train
+  
+  
+##Reduce Sparsity by removing low-frequency terms
+#Removes terms that have count 0 in >95% of docs.
+DTM_train = removeSparseTerms(DTM_train, 0.95)
+#Limit Test Set to terms used in training set (after sparsity step)
+DTM_test = DocumentTermMatrix(corpus_test,
+                               control = list(dictionary=Terms(DTM_train)))
+DTM_train
+DTM_test
+```
+
+Next, I will create a blank outcome vector. Then I will construct the tf idf weights. 
+```{r, echo=FALSE}
+#Create blank Outcome Vector
+  # Use string cleaning to
+y_train = labels_train
+y_test = labels_test
+
+
+##Weighting: Construct TF IDF weights
+tfidf_train = weightTfIdf(DTM_train)
+tfidf_test = weightTfIdf(DTM_test)
+```
+
+Now, I will build the model. The model chosen is a lasso penalized multinomial regression model. Cross validation is involved with nfold=3. I used the cv.glmnet function. To control for the size of the datset, I also used data.matrix() to control the size. 
+```{r, echo=FALSE, error=FALSE}
+cvfit <- cv.glmnet(data.matrix(DTM_train), y_train, family='multinomial', type.multinomial="grouped", nfold=3, alpha =1)
+
+plot(cvfit)
+
+```
+The plot above shows a strong positive correlation between teh log and the multinomial deviance. 
+
+Below, I will compute the average accurace of the model. 
+
+```{r, echo=FALSE}
+yhat_test <- predict(cvfit, data.matrix(DTM_test), s = "lambda.min", type = "class")
+colnames(yhat_test) <- "V1"
+yhat1 <- as.matrix(yhat_test)
+ colnames(yhat1) <- c("Predicted")
+compare1 <- cbind(y_test,yhat1)
+compare1 <- as.data.frame(compare1)
+colnames(compare1)[1] <- "V1"
+compare1 <- compare1 %>%
+  mutate(correct = ifelse(V1==Predicted, 1, 0)) %>%
+   group_by(V1) %>%
+  summarize(pct_accuracy = sum(correct)/50*100)
+#Average Accuracy
+mean(compare1$pct_accuracy)
+```
+
+The average accuracy of teh model when first performed is 71.2%. This is a great prediction for this model and therefore demonstrates the model built with 50 authors is a good predictor of author attribution .
+
+
