@@ -1,0 +1,348 @@
+---
+title: "Data Mining final project"
+author: "Lauren Stover"
+date: "5/3/2021"
+output:
+  pdf_document: default
+  html_document: default
+---
+###Report
+
+
+#Introduction 
+For my final project, I was interested in studying the NCAA March Madness tournament. ESPN provides various offensive and defensive statistics for each team for the tournament. I was curious to better understand the importance of these statistics in predictor the winner of a single game in the tournament. If there is a combination of statistics that is able to predict the likely winner with almost 100% accuracy. Below I have broken down some of the statistics that were included.
+
+GP: Games played
+PTS: Points per game
+FGM-FGA: Field Goals Made-Attempted Per Game
+FG%: Field Goal Percentage
+3PM-3PA: 3-Point Field Goals Made-Attempted Per Game
+3P%: 3-Point Field Goal Percentage
+FTM-FTA: Free Throws Made-Attempted Per Game
+FT%: Free Throws Percentage
+OFF: Offensive Rebounds
+ORPG: Offensive Rebounds Per Game
+DEF: Defensive Rebounds
+DRPG: Defensive Rebounds Per Game
+REB: Rebounds
+RPG: Rebounds Per Game
+PPG: Points Per Game
+FGM: Field Goals Made Per Game
+FGA: Field Goals Attempted Per Game
+FGM: Field Goals Made
+FGA: Field Goals Attempted
+FG%: Field Goal Percentage
+2PM: 2-Point Field Goals Made
+2PA: 2-Point Field Goals Attempted
+2P%: 2-Point Field Goal Percentage
+PPS: Points Per Shot
+FG%: Adjusted Field Goal Percentage
+FTM: Free Throws Made Per Game
+FTA: Free Throws Attempted Per Game
+FTM: Total Free Throws Made
+FTA: Total Free Throws Attempted
+FT%: Free Throw Percentage
+3PM: 3-Point Field Goals Made Per Game
+3PA: 3-Point Field Goals Attempted Per Game
+3PM: Total 3-Point Field Goals Made
+3PA: Total 3-Point Field Goals Attempted
+3P%: 3-Point Field Goal Percentage
+2PM: 2-Point Field Goals Made
+2PA: 2-Point Field Goals Attempted
+2P%: 2-Point Field Goal Percentage
+PPS: Points Per Shot
+FG%: Adjusted Field Goal Percentage
+AST: Assists
+APG: Assists Per Game
+TO: Turnovers
+TOPG: Turnovers Per Game
+AST/TO: Assists Per Turnover
+STL: Steals
+STPG: Steals Per Game
+TO: Turnovers
+TOPG: Turnovers Per Game
+PF: Personal Fouls
+ST/TO: Steals Per Turnovers
+ST/PF: Steals Per Personal Fouls
+BLK: Blocks
+PF: Personal Fouls
+BLKPG: Blocks Per Game
+BLK/PF: Blocks Per Fouls
+
+
+#Data Analysis
+I have already cleaned all the data and gotten in ready for use in a python script. I will now join the data frames.
+
+```{r, echo=FALSE}
+ncaa = read.csv("~/Documents/UTX/DataMining/FinalProject/ncaa1.csv")
+threepoints= read.csv("~/Documents/UTX/DataMining/FinalProject/3-points.csv")
+assists= read.csv("~/Documents/UTX/DataMining/FinalProject/Assists.csv")
+blocks = read.csv("~/Documents/UTX/DataMining/FinalProject/Blocks.csv")
+fieldgoals= read.csv("~/Documents/UTX/DataMining/FinalProject/Field-Goals.csv")
+freethrows= read.csv("~/Documents/UTX/DataMining/FinalProject/Free-Throws.csv")
+rebounds= read.csv("~/Documents/UTX/DataMining/FinalProject/Rebounds.csv")
+scoring= read.csv("~/Documents/UTX/DataMining/FinalProject/Scoring.csv")
+steals= read.csv("~/Documents/UTX/DataMining/FinalProject/Steals.csv")
+```
+
+Now I will attempt to do an inner join for ncaa and threepoints. I will go through this process with all the data sets until there is one large data set of all the observations
+
+```{r, echo=FALSE}
+library(tidyverse)
+ncaa <- ncaa %>% 
+  inner_join(assists, by = c("Team"="Team", "Year"="Year"))
+
+ncaa <- ncaa %>% 
+  inner_join(assists, by = c("Team.1"="Team", "Year"="Year"))
+```
+
+
+```{r, echo=FALSE}
+ncaa <- ncaa %>% 
+  inner_join(threepoints, by = c("Team"="Team", "Year"="Year"))
+
+ncaa <- ncaa %>% 
+  inner_join(threepoints, by = c("Team.1"="Team", "Year"="Year"))
+```
+
+```{r, echo=FALSE}
+ncaa <- ncaa %>% 
+  inner_join(blocks, by = c("Team"="Team", "Year"="Year"))
+
+ncaa <- ncaa %>% 
+  inner_join(blocks, by = c("Team.1"="Team", "Year"="Year"))
+```
+
+```{r, echo=FALSE}
+ncaa <- ncaa %>% 
+  inner_join(fieldgoals, by = c("Team"="Team", "Year"="Year"))
+
+ncaa <- ncaa %>% 
+  inner_join(fieldgoals, by = c("Team.1"="Team", "Year"="Year"))
+```
+
+```{r, echo=FALSE}
+ncaa <- ncaa %>% 
+  inner_join(freethrows, by = c("Team"="Team", "Year"="Year"))
+
+ncaa <- ncaa %>% 
+  inner_join(freethrows, by = c("Team.1"="Team", "Year"="Year"))
+```
+
+```{r, echo=FALSE}
+ncaa <- ncaa %>% 
+  inner_join(rebounds, by = c("Team"="Team", "Year"="Year"))
+
+ncaa <- ncaa %>% 
+  inner_join(rebounds, by = c("Team.1"="Team", "Year"="Year"))
+```
+
+```{r, echo=FALSE}
+ncaa <- ncaa %>% 
+  inner_join(scoring, by = c("Team"="Team", "Year"="Year"))
+
+ncaa <- ncaa %>% 
+  inner_join(scoring, by = c("Team.1"="Team", "Year"="Year"))
+```
+
+```{r, echo=FALSE}
+ncaa <- ncaa %>% 
+  inner_join(steals, by = c("Team"="Team", "Year"="Year"))
+
+ncaa <- ncaa %>% 
+  inner_join(steals, by = c("Team.1"="Team", "Year"="Year"))
+```
+
+```{r, echo=FALSE}
+library(dplyr)
+ncaa = ncaa %>%
+  rename(RK.assist = RK.x) %>%
+  rename(RK.assist.1=RK.y) %>%
+  rename(RK.threepoint =RK.x.x) %>%
+  rename(RK.threepoint.1 = RK.y.y ) %>%
+  rename(RK.blocks = RK.x.x.x ) %>%
+  rename(RK.blocks.1 = RK.y.y.y) %>%
+  rename(RK.fieldgoals = RK.x.x.x.x) %>%
+  rename(RK.fieldgoals.1 = RK.y.y.y.y) %>%
+  rename(RK.frethrows= RK.x.x.x.x.x) %>%
+  rename(RK.freethrows.1= RK.y.y.y.y.y) %>%
+  rename(RK.rebounds = RK.x.x.x.x.x.x) %>%
+  rename(RK.rebounds.1 = RK.y.y.y.y.y.y) %>%
+  rename(RK.scoring = RK.x.x.x.x.x.x.x) %>%
+  rename(RK.scoring.1 = RK.y.y.y.y.y.y.y) %>%
+  rename(RK.steals = RK.x.x.x.x.x.x.x.x) 
+```
+
+```{r, echo=FALSE}
+ncaa = ncaa %>%
+  rename(GP.assist = GP.x) %>%
+  rename(GP.assist.1=GP.y) %>%
+  rename(GP.threepoint =GP.x.x) %>%
+  rename(GP.threepoint.1 = GP.y.y ) %>%
+  rename(GP.blocks = GP.x.x.x ) %>%
+  rename(GP.blocks.1 = GP.y.y.y) %>%
+  rename(GP.fieldgoals = GP.x.x.x.x) %>%
+  rename(GP.fieldgoals.1 = GP.y.y.y.y) %>%
+  rename(GP.frethrows= GP.x.x.x.x.x) %>%
+  rename(GP.freethrows.1= GP.y.y.y.y.y) %>%
+  rename(GP.rebounds = GP.x.x.x.x.x.x) %>%
+  rename(GP.rebounds.1 = GP.y.y.y.y.y.y) %>%
+  rename(GP.scoring = GP.x.x.x.x.x.x.x) %>%
+  rename(GP.scoring.1 = GP.y.y.y.y.y.y.y) %>%
+  rename(GP.steals = GP.x.x.x.x.x.x.x.x) 
+```
+
+All of the data is now merged into one large file called ncaa.The file contains the various games played in the NCAA March Madness tournament from 2002-2019. 
+
+
+
+I would now like to do some comparative statistics on this. I know from some of the preliminary data cleaning that in the first round of the tournament, the higher seeded team ( for example a 1 vs 16, the 1 is the higher seed) has over a 99% chance of winning. I am curious if all the other statistics for these games indicate that the higher seeded team is favored to win. 
+
+```{r, echo=FALSE}
+ncaa = ncaa %>%
+  mutate(PPGDIFF = (PPG.x-PPG.y))
+
+```
+
+
+```{r, echo=FALSE, error=FALSE, results='hide', message=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(naivebayes)
+library(modelr)
+library(rsample)
+library(foreach)
+library(caret)
+library(parallel)
+library(mosaic)
+library(foreach)
+library(ggeffects)
+library(nnet)
+
+```
+
+```{r, echo=FALSE}
+ncaa <- ncaa%>%
+  mutate(Winnerf=ifelse(ncaa$Winner==ncaa$Team, 1, ifelse(ncaa$Winner==ncaa$Team.1,0,NA)))
+```
+
+
+First thing I will do is split the data into a training and testing data set. I will set the split at 0.8.
+```{r, echo=FALSE}
+ncaa_split = initial_split(ncaa, prop = 0.8)
+ncaa_train = training(ncaa_split)
+ncaa_test = testing(ncaa_split)
+```
+
+Now I will fit the training data to a linear model. I will start with a very basic model that includes points per game and how accurate that statistic is at predicting the winner. I will use the PPGDIFF variable I created as well that indicates the differences in points per game as either positive or negative. Positive indicates that the home team had the higher points per game statistics, negative indicates the away team had the higher points per game statistic. 
+
+
+
+```{r, echo=FALSE}
+
+# Fit to the training data
+glm1 = glm(Winnerf ~ PPG.x+PPG.y+PPGDIFF, data=ncaa_train, family ='binomial')
+
+coef(glm1)  
+
+# Predictions out of sample
+# Root mean squared error
+rmse(glm1, ncaa_test)
+```
+The RMSE for this model is around 0.6. I believe we can do much better than that. 
+
+The second model I will build will include all of the original model variables plus rebounds per game for each team. 
+```{r, echo=FALSE}
+# Fit to the training data
+glm2 = glm(Winnerf ~ PPG.x+PPG.y+PPGDIFF+RPG.x+RPG.y, data=ncaa_train, family ='binomial')
+
+coef(glm2) 
+
+# Predictions out of sample
+# Root mean squared error
+rmse(glm2, ncaa_test)
+```
+Unfortunatley, the RMSE increased. This means that rebounds per game for each team is not a good predictor of the winner. I will remove this variable from future models. 
+
+For the third model, I will include variables form the first model as well as offensive rebounds per game for each team. 
+```{r, echo=FALSE}
+# Fit to the training data
+glm3 = glm(Winnerf ~ PPG.x+PPG.y+PPGDIFF+ORPG.x+ORPG.y, data=ncaa_train, family ='binomial')
+
+coef(glm3)
+
+# Predictions out of sample
+# Root mean squared error
+rmse(glm3, ncaa_test)
+```
+Again, the RMSE has increased. This would indicate offensive rebounds per game is not a good indicator of winner. 
+
+
+For the fourth model, I will try something new. I hypothesize now the points per game and the difference is too good of an indicator of the winner for a model. I will now include the variables I did not think were good predictors up to this point: offensive rebounds per game, rebounds per game, as well as a new variable, turnovers per game
+```{r, echo=FALSE}
+# Fit to the training data
+glm4 = glm(Winnerf ~ TOPG.x+TOPG.y+ORPG.x+ORPG.y+RPG.x+RPG.y, data=ncaa_train, family ='binomial')
+
+coef(glm4) 
+
+# Predictions out of sample
+# Root mean squared error
+rmse(glm4, ncaa_test)
+```
+While the RMSE is higher than the original models that included points per game, it is around 0.65. It did not increase much which would indicate to me that these are good predictors of the winner of a game. I will now work on further improving the model by including some other per game variables. I will include field goals attempted, defensive rebounds, free throws made, three points made per game, two points made per game, and assists per game.
+
+```{r, echo=FALSE}
+# Fit to the training data
+glm5 = glm(Winnerf~ TOPG.x+TOPG.y+ORPG.x+ORPG.y+RPG.x+RPG.y+FGA.x+FGA.y+DRPG.x+DRPG.y+FTM.PG.x+FTM.PG.y+X3PM.x+X3PM.y+X2PM.x+X2PM.y+APG.x+APG.y, data=ncaa_train, family ='binomial')
+
+coef(glm5)
+
+# Predictions out of sample
+# Root mean squared error
+rmse(glm5, ncaa_test)
+```
+The RMSE increased again from the fourth model. I will now include interactions to see if the RMSE can be decreased further. 
+
+For this model I will now take out the offensive and defensive rebounds per game as it seems repetitive of the total. 
+
+```{r, echo=FALSE}
+# Fit to the training data
+glm6 = glm(Winnerf ~ TOPG.x+TOPG.y+RPG.x+RPG.y+FGA.x+FGA.y+FTM.PG.x+FTM.PG.y+X3PM.1.x+X3PM.1.y+X2PM.x.x+X2PM.y.y+APG.x+APG.y + TOPG.x*TOPG.y, data=ncaa_train, family ='binomial')
+
+coef(glm6)
+
+# Predictions out of sample
+# Root mean squared error
+rmse(glm6, ncaa_test)
+```
+The RMSE decreased significantly, which is great. This means the offensive and defensive rebounds were harming the model. 
+
+Below I will create the confusion matrix for out of sample performance.
+```{r, echo=FALSE}
+phat_test_logit6=predict(glm6, ncaa_test, type='response')
+yhat_test_logit6=ifelse(phat_test_logit6 > 0.5, 1, 0)
+confusion_out_logit6=table(y=ncaa_test$Winnerf,
+                           yhat=yhat_test_logit6)
+confusion_out_logit6
+```
+
+The false discovery rate is about 34%.
+The false positive rate is about 100%. This seems extremely inaccurate
+The true positive rate is about 92%.  
+
+
+#Results
+As we can see, the RMSE decreased each model until it resulted with an RMSE of around 0.68. This means that this linear model is the best prediction of the winner of a game in the NCAA March Madness tournament. for the different apartment buildings.
+
+If we calculate the marginal effects of our model, one can see that the change in the rent and leasing rate is relatively the same across the model. 
+```{r, echo=FALSE}
+library(margins)
+me=marginal_effects(glm6, ncaa, variables=NULL)
+head(me)
+```
+
+
+#Conclusion
+Overall, I would say that these statistics do a good job of predicting a winner of the NCAA tournament. I believe that there are better combinations possibly to predict the winner, but more data would be required. I tested separately interacting several terms and to my shock it increased the RMSE. I would assume this increase is due to the interaction counteracting the good statistic of the winner and slightly improving the statistic for the loser.
+
+I think moving forward I would be interested in testing separate techniques. Perhaps simulating a tournament itself to see how many games it can accurately predict would be interesting. 
